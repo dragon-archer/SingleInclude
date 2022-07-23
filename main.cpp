@@ -14,7 +14,12 @@
 #include <set>
 #include <string>
 
-#if __has_include(<format>)
+#if __has_include(<format.h>) // Provided by CMake
+#define FMT_HEADER_ONLY
+#include <format.h>
+using fmt::make_format_args;
+using fmt::vformat;
+#elif __has_include(<format>)
 #include <format>
 #elif __has_include(<fmt/format.h>)
 #define FMT_HEADER_ONLY
@@ -184,11 +189,11 @@ error_state parse_option(list<string>& args, state_t& state, option_t op, const 
 	switch(op) {
 	case O_INCLUDE_ALL: {
 		include_all = true;
-		return E_NO_ERROR;
+		break;
 	}
 	case O_DRY: {
 		dry_run = true;
-		return E_NO_ERROR;
+		break;
 	}
 	case O_HELP: {
 		print_help();
@@ -206,7 +211,7 @@ error_state parse_option(list<string>& args, state_t& state, option_t op, const 
 			return { E_DIR_NOT_EXIST, arg.string() };
 		}
 		state.includePaths.push_back(fs::canonical(arg));
-		return E_NO_ERROR;
+		break;
 	}
 	case O_OUT: {
 		fs::path arg;
@@ -217,20 +222,21 @@ error_state parse_option(list<string>& args, state_t& state, option_t op, const 
 			arg = extra;
 		}
 		state.outfilename = arg;
-		return E_NO_ERROR;
+		break;
 	}
 	case O_TREE: {
 		tree = true;
-		return E_NO_ERROR;
+		break;
 	}
 	case O_VERBOSE: {
 		verbose = true;
-		return E_NO_ERROR;
+		break;
 	}
 	case OPTION_COUNT: { // Avoid warning, this should never be reached
 		return E_UNKNOWN_OPTION;
 	}
 	}
+	return E_NO_ERROR;
 }
 
 state_t parse_config(int argc, char* argv[]) {
