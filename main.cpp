@@ -55,6 +55,7 @@ enum option_t : int {
 	O_HELP,
 	O_INCLUDE_PATH,
 	O_OUT,
+	O_TREE,
 	O_VERBOSE,
 	OPTION_COUNT
 };
@@ -64,6 +65,7 @@ const map<char, option_t> short_options = {
 	make_pair('h', O_HELP),
 	make_pair('I', O_INCLUDE_PATH),
 	make_pair('o', O_OUT),
+	make_pair('t', O_TREE),
 	make_pair('v', O_VERBOSE)
 };
 
@@ -72,6 +74,7 @@ const map<string, option_t> long_options = {
 	make_pair("help", O_HELP),
 	make_pair("include", O_INCLUDE_PATH),
 	make_pair("out", O_OUT),
+	make_pair("tree", O_TREE),
 	make_pair("verbose", O_VERBOSE)
 };
 
@@ -85,6 +88,7 @@ const string header = R"+(// This file is generated automatically by SingleInclu
 string progname;
 bool   includeAll = false;
 bool   verbose	  = false;
+bool   tree  = false;
 
 struct error_state {
 	error_type e;
@@ -164,9 +168,10 @@ void print_help() {
 		 << "\t\t\tas this program cannot understand macro now\n"
 		 << "  -h, --help\t\tPrint this help message and exit\n"
 		 << "  -I, --include PATH\tAdd PATH to include paths\n"
-		 << "  -o, --out FILE\t\tSet the output file name to FILE\n"
+		 << "  -o, --out FILE\tSet the output file name to FILE\n"
 		 << "\t\t\tBy default, the output will print to the console\n"
-		 << "  -v, --verbose\t\tPrint more information to stderr\n"
+		 << "  -t, --tree\t\tPrint dependent tree\n"
+		 << "  -v, --verbose\t\tPrint more information to stderr (implictly include --tree)\n"
 		 << endl;
 }
 
@@ -203,6 +208,10 @@ error_state parse_option(list<string>& args, state_t& state, option_t op, const 
 			arg = extra;
 		}
 		state.outfilename = arg;
+		return E_NO_ERROR;
+	}
+	case O_TREE: {
+		tree = true;
 		return E_NO_ERROR;
 	}
 	case O_VERBOSE: {
@@ -398,6 +407,8 @@ int main(int argc, char* argv[]) {
 	}
 	if(verbose) {
 		dump(config);
+	} else if(tree) {
+		dump_tree(config.file, 0);
 	}
 	return E_NO_ERROR;
 }
