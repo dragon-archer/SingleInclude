@@ -1,7 +1,7 @@
 /**
  * @file      main.cpp
  * @brief     Main source file of SingleInclude
- * @version   0.6
+ * @version   1.0
  * @author    dragon-archer (dragon-archer@outlook.com)
  * @copyright Copyright (c) 2022
  */
@@ -412,7 +412,7 @@ int main(int argc, char* argv[]) {
 			ofstream fout;
 			fout.open(config.outfilename);
 			if(!fout.is_open()) {
-				error_state error { E_FILE_ERROR, "Cannot open output file " + config.outfilename.string() };
+				error_state error { E_FILE_ERROR, "Cannot open output file: " + config.outfilename.string() };
 				cerr << error.what() << endl;
 				return error;
 			}
