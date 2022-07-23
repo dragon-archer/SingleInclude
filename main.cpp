@@ -55,6 +55,7 @@ enum option_t : int {
 	O_HELP,
 	O_INCLUDE_PATH,
 	O_OUT,
+	O_VERBOSE,
 	OPTION_COUNT
 };
 
@@ -62,20 +63,24 @@ const map<char, option_t> short_options = {
 	make_pair('a', O_INCLUDE_ALL),
 	make_pair('h', O_HELP),
 	make_pair('I', O_INCLUDE_PATH),
-	make_pair('o', O_OUT)
+	make_pair('o', O_OUT),
+	make_pair('v', O_VERBOSE)
 };
 
 const map<string, option_t> long_options = {
 	make_pair("all", O_INCLUDE_ALL),
 	make_pair("help", O_HELP),
 	make_pair("include", O_INCLUDE_PATH),
-	make_pair("out", O_OUT)
+	make_pair("out", O_OUT),
+	make_pair("verbose", O_VERBOSE)
 };
 
 const regex regex_include { R"+(^\s*#\s*include\s*(<.*>|".*")\s*$)+" };
 const regex regex_system_include { R"+(^\s*#\s*include\s*<.*>\s*$)+" };
 
 string progname;
+bool   includeAll = false;
+bool   verbose	  = false;
 
 struct error_state {
 	error_type e;
@@ -127,11 +132,23 @@ struct state_t {
 	fs::path	   outfilename;
 	list<fs::path> includePaths;
 	set<fs::path>  includedFiles;
-	bool includeAll = false;
 
 	state_t(error_state e = E_NO_ERROR)
 		: error(e) { }
 };
+
+void log(string msg) {
+	if(verbose) {
+		cerr << msg << endl;
+	}
+}
+
+string add_quote(string name, bool is_angle) {
+	constexpr const char* begin_quote[2] = { "\"", "<" };
+	constexpr const char* end_quote[2]	 = { "\"", ">" };
+
+	return begin_quote[is_angle] + name + end_quote[is_angle];
+}
 
 void print_help() {
 	cout << "SingleInclude: A small program to generate a single include file for C/C++\n"
@@ -144,14 +161,15 @@ void print_help() {
 		 << "  -h, --help\t\tPrint this help message and exit\n"
 		 << "  -I, --include PATH\tAdd PATH to include paths\n"
 		 << "  -o, --out FILE\t\tSet the output file name to FILE\n"
-		 << "\t\t\tBy default, the output will print to the console.\n"
+		 << "\t\t\tBy default, the output will print to the console\n"
+		 << "  -v, --verbose\t\tPrint more information to stderr\n"
 		 << endl;
 }
 
 error_state parse_option(list<string>& args, state_t& state, option_t op, const string& extra = "") {
 	switch(op) {
 	case O_INCLUDE_ALL: {
-		state.includeAll = true;
+		includeAll = true;
 		return E_NO_ERROR;
 	}
 	case O_HELP: {
@@ -181,6 +199,10 @@ error_state parse_option(list<string>& args, state_t& state, option_t op, const 
 			arg = extra;
 		}
 		state.outfilename = arg;
+		return E_NO_ERROR;
+	}
+	case O_VERBOSE: {
+		verbose = true;
 		return E_NO_ERROR;
 	}
 	case OPTION_COUNT: { // Avoid warning, this should never be reached
@@ -247,7 +269,7 @@ error_state parse_include(state_t& config, file_t& file, string& out) {
 	string includeFile;
 	auto   search_paths = config.includePaths;
 	if(!file.is_angle) {
-		// cout << "Add current path " << file.name.parent_path().string() << endl;
+		log("Add current path to search: " + file.name.parent_path().string());
 		search_paths.push_front(file.name.parent_path());
 	}
 	while(!fin.eof()) {
@@ -272,7 +294,7 @@ error_state parse_include(state_t& config, file_t& file, string& out) {
 				++it2;
 			}
 			includeFile.assign(it1, it2);
-			// cout << "Found include file " << includeFile << endl;
+			log("Found include file " + add_quote(includeFile, temp.is_angle));
 			bool	 found = false;
 			fs::path canonicalFile;
 			string	 content;
@@ -282,9 +304,9 @@ error_state parse_include(state_t& config, file_t& file, string& out) {
 					canonicalFile = fs::canonical(canonicalFile);
 					found		  = true;
 					temp.name	  = canonicalFile;
-					// cout << "\tInclude file expends to " << canonicalFile.string() << endl;
-					if(!config.includeAll && config.includedFiles.find(canonicalFile) != config.includedFiles.end()) {
-						// cout << "\tInclude file already exists, ignore" << endl;
+					log("Include file expends to " + canonicalFile.string());
+					if(!includeAll && config.includedFiles.find(canonicalFile) != config.includedFiles.end()) {
+						log("Include file already exists, ignore");
 						temp.state = I_ALREADY_INCLUDED;
 					} else {
 						temp.state = I_EXPENDED;
@@ -296,7 +318,7 @@ error_state parse_include(state_t& config, file_t& file, string& out) {
 				}
 			}
 			if(!found) {
-				// cout << "\tIgnore include file " << includeFile << " because of not found (may be system header)" << endl;
+				log("Ignore include file " + add_quote(includeFile, temp.is_angle) + " because of not found (may be system header)");
 				temp.name  = includeFile;
 				temp.state = I_NOT_FOUND;
 				file.includeFiles.push_back(temp);
@@ -317,12 +339,9 @@ error_state parse_include(state_t& config, file_t& file, string& out) {
 }
 
 void dump_tree(const file_t& f, int depth) {
-	constexpr const char* begin_quote[2] = { "\"", "<" };
-	constexpr const char* end_quote[2]	 = { "\"", ">" };
-
 	string prefix(2 * depth, ' ');
 	cout << prefix
-		 << begin_quote[f.is_angle] << f.name.string() << end_quote[f.is_angle]
+		 << add_quote(f.name.string(), f.is_angle)
 		 << " (" << include_msg[f.state] << ")\n";
 	for(auto& i : f.includeFiles) {
 		dump_tree(i, depth + 1);
@@ -372,6 +391,9 @@ int main(int argc, char* argv[]) {
 		fout.close();
 	} else {
 		cout << content;
+	}
+	if(verbose) {
+		dump(config);
 	}
 	return E_NO_ERROR;
 }
