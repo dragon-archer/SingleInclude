@@ -1,7 +1,7 @@
 /**
  * @file      main.cpp
  * @brief     Main source file of SingleInclude
- * @version   0.2
+ * @version   0.4
  * @author    dragon-archer (dragon-archer@outlook.com)
  * @copyright Copyright (c) 2022
  */
@@ -75,8 +75,12 @@ const map<string, option_t> long_options = {
 	make_pair("verbose", O_VERBOSE)
 };
 
-const regex regex_include { R"+(^\s*#\s*include\s*(<.*>|".*")\s*$)+" };
-const regex regex_system_include { R"+(^\s*#\s*include\s*<.*>\s*$)+" };
+const regex	 regex_include { R"+(^\s*#\s*include\s*(<.*>|".*")\s*$)+" };
+const regex	 regex_system_include { R"+(^\s*#\s*include\s*<.*>\s*$)+" };
+const string header = R"+(// This file is generated automatically by SingleInclude
+// It's suggested not to edit anything below
+// If you found any issue, please report to https://github.com/dragon-archer/SingleInclude/issues
+)+";
 
 string progname;
 bool   includeAll = false;
@@ -371,8 +375,8 @@ int main(int argc, char* argv[]) {
 		cerr << config.error.what() << endl;
 		return config.error;
 	}
-	string		content;
-	error_state error = parse_include(config, config.file, content);
+	string		content = header;
+	error_state error	= parse_include(config, config.file, content);
 	if(error == E_FINISH) {
 		return E_NO_ERROR;
 	} else if(error != E_NO_ERROR) {
