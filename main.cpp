@@ -1,7 +1,7 @@
 /**
  * @file      main.cpp
  * @brief     Main source file of SingleInclude
- * @version   0.4
+ * @version   0.6
  * @author    dragon-archer (dragon-archer@outlook.com)
  * @copyright Copyright (c) 2022
  */
@@ -52,6 +52,7 @@ constexpr const char* error_msg[ERROR_COUNT] = {
 
 enum option_t : int {
 	O_INCLUDE_ALL,
+	O_DRY,
 	O_HELP,
 	O_INCLUDE_PATH,
 	O_OUT,
@@ -62,6 +63,7 @@ enum option_t : int {
 
 const map<char, option_t> short_options = {
 	make_pair('a', O_INCLUDE_ALL),
+	make_pair('d', O_DRY),
 	make_pair('h', O_HELP),
 	make_pair('I', O_INCLUDE_PATH),
 	make_pair('o', O_OUT),
@@ -71,6 +73,7 @@ const map<char, option_t> short_options = {
 
 const map<string, option_t> long_options = {
 	make_pair("all", O_INCLUDE_ALL),
+	make_pair("dry", O_DRY),
 	make_pair("help", O_HELP),
 	make_pair("include", O_INCLUDE_PATH),
 	make_pair("out", O_OUT),
@@ -86,9 +89,10 @@ const string header = R"+(// This file is generated automatically by SingleInclu
 )+";
 
 string progname;
-bool   includeAll = false;
-bool   verbose	  = false;
-bool   tree  = false;
+bool   include_all = false;
+bool   verbose	   = false;
+bool   tree		   = false;
+bool   dry_run	   = false;
 
 struct error_state {
 	error_type e;
@@ -166,6 +170,7 @@ void print_help() {
 		 << "\t\t\tBy default, if one file has been expended before, it will be omitted later\n"
 		 << "\t\t\tThis may be helpful if you use macro to choose which file to include,\n"
 		 << "\t\t\tas this program cannot understand macro now\n"
+		 << "  -d, --dry\t\tDry run mode, do not output the header file\n"
 		 << "  -h, --help\t\tPrint this help message and exit\n"
 		 << "  -I, --include PATH\tAdd PATH to include paths\n"
 		 << "  -o, --out FILE\tSet the output file name to FILE\n"
@@ -178,7 +183,11 @@ void print_help() {
 error_state parse_option(list<string>& args, state_t& state, option_t op, const string& extra = "") {
 	switch(op) {
 	case O_INCLUDE_ALL: {
-		includeAll = true;
+		include_all = true;
+		return E_NO_ERROR;
+	}
+	case O_DRY: {
+		dry_run = true;
 		return E_NO_ERROR;
 	}
 	case O_HELP: {
@@ -318,7 +327,7 @@ error_state parse_include(state_t& config, file_t& file, string& out) {
 					found		  = true;
 					temp.name	  = canonicalFile;
 					log("Include file expends to " + canonicalFile.string());
-					if(!includeAll && config.includedFiles.find(canonicalFile) != config.includedFiles.end()) {
+					if(!include_all && config.includedFiles.find(canonicalFile) != config.includedFiles.end()) {
 						log("Include file already exists, ignore");
 						temp.state = I_ALREADY_INCLUDED;
 					} else {
@@ -392,18 +401,20 @@ int main(int argc, char* argv[]) {
 		cerr << error.what() << endl;
 		return error;
 	}
-	if(!config.outfilename.empty()) {
-		ofstream fout;
-		fout.open(config.outfilename);
-		if(!fout.is_open()) {
-			error_state error { E_FILE_ERROR, "Cannot open output file " + config.outfilename.string() };
-			cerr << error.what() << endl;
-			return error;
+	if(!dry_run) {
+		if(!config.outfilename.empty()) {
+			ofstream fout;
+			fout.open(config.outfilename);
+			if(!fout.is_open()) {
+				error_state error { E_FILE_ERROR, "Cannot open output file " + config.outfilename.string() };
+				cerr << error.what() << endl;
+				return error;
+			}
+			fout << content;
+			fout.close();
+		} else {
+			cout << content;
 		}
-		fout << content;
-		fout.close();
-	} else {
-		cout << content;
 	}
 	if(verbose) {
 		dump(config);
