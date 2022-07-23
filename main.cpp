@@ -1,7 +1,7 @@
 /**
  * @file      main.cpp
  * @brief     Main source file of SingleInclude
- * @version   1.0
+ * @version   0.2
  * @author    dragon-archer (dragon-archer@outlook.com)
  * @copyright Copyright (c) 2022
  */
@@ -51,6 +51,7 @@ constexpr const char* error_msg[ERROR_COUNT] = {
 };
 
 enum option_t : int {
+	O_INCLUDE_ALL,
 	O_HELP,
 	O_INCLUDE_PATH,
 	O_OUT,
@@ -58,12 +59,14 @@ enum option_t : int {
 };
 
 const map<char, option_t> short_options = {
+	make_pair('a', O_INCLUDE_ALL),
 	make_pair('h', O_HELP),
 	make_pair('I', O_INCLUDE_PATH),
 	make_pair('o', O_OUT)
 };
 
 const map<string, option_t> long_options = {
+	make_pair("all", O_INCLUDE_ALL),
 	make_pair("help", O_HELP),
 	make_pair("include", O_INCLUDE_PATH),
 	make_pair("out", O_OUT)
@@ -124,6 +127,7 @@ struct state_t {
 	fs::path	   outfilename;
 	list<fs::path> includePaths;
 	set<fs::path>  includedFiles;
+	bool includeAll = false;
 
 	state_t(error_state e = E_NO_ERROR)
 		: error(e) { }
@@ -132,16 +136,24 @@ struct state_t {
 void print_help() {
 	cout << "SingleInclude: A small program to generate a single include file for C/C++\n"
 		 << "Usage: " << progname << " [options...] FILE\n"
-		 << "By default, the output will print to the console.\n"
 		 << "Options:\n"
-		 << "\t-h, --help\t\tPrint this help message and exit\n"
-		 << "\t-I, --include PATH\tAdd PATH to include paths\n"
-		 << "\t-o, --out FILE\t\tSet the output file name to FILE\n"
+		 << "  -a, --all\t\tExpend all files found, no matter whether it has been expended before\n"
+		 << "\t\t\tBy default, if one file has been expended before, it will be omitted later\n"
+		 << "\t\t\tThis may be helpful if you use macro to choose which file to include,\n"
+		 << "\t\t\tas this program cannot understand macro now\n"
+		 << "  -h, --help\t\tPrint this help message and exit\n"
+		 << "  -I, --include PATH\tAdd PATH to include paths\n"
+		 << "  -o, --out FILE\t\tSet the output file name to FILE\n"
+		 << "\t\t\tBy default, the output will print to the console.\n"
 		 << endl;
 }
 
 error_state parse_option(list<string>& args, state_t& state, option_t op, const string& extra = "") {
 	switch(op) {
+	case O_INCLUDE_ALL: {
+		state.includeAll = true;
+		return E_NO_ERROR;
+	}
 	case O_HELP: {
 		print_help();
 		return E_FINISH;
@@ -271,7 +283,7 @@ error_state parse_include(state_t& config, file_t& file, string& out) {
 					found		  = true;
 					temp.name	  = canonicalFile;
 					// cout << "\tInclude file expends to " << canonicalFile.string() << endl;
-					if(config.includedFiles.find(canonicalFile) != config.includedFiles.end()) {
+					if(!config.includeAll && config.includedFiles.find(canonicalFile) != config.includedFiles.end()) {
 						// cout << "\tInclude file already exists, ignore" << endl;
 						temp.state = I_ALREADY_INCLUDED;
 					} else {
@@ -288,7 +300,6 @@ error_state parse_include(state_t& config, file_t& file, string& out) {
 				temp.name  = includeFile;
 				temp.state = I_NOT_FOUND;
 				file.includeFiles.push_back(temp);
-				// TODO
 				out += line + '\n';
 			} else {
 				if(temp.state == I_EXPENDED) {
