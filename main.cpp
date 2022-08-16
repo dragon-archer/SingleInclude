@@ -1,7 +1,7 @@
 /**
  * @file      main.cpp
  * @brief     Main source file of SingleInclude
- * @version   1.0
+ * @version   1.1
  * @author    dragon-archer (dragon-archer@outlook.com)
  * @copyright Copyright (c) 2022
  */
@@ -181,7 +181,7 @@ void print_help() {
 		 << "  -o, --out FILE\tSet the output file name to FILE\n"
 		 << "\t\t\tBy default, the output will print to the console\n"
 		 << "  -t, --tree\t\tPrint dependent tree\n"
-		 << "  -v, --verbose\t\tPrint more information to stderr (implictly include --tree)\n"
+		 << "  -v, --verbose\t\tPrint more information to stderr (implicitly include --tree)\n"
 		 << endl;
 }
 
